@@ -180,6 +180,8 @@ try:
                         print 'distance to waypoint: ', round(distance,1), 'm'
                         if round(distance,1) < TOLERANCE_RADIUS:
                           print('You are to far away from the waypoint')
+                        elif index_waypoints == num_waypoints:
+                          print('Yoh have been on all waypoints - exit')
                         else:
                           print('You have reached waypoint',index_waypoints)
                           index_waypoints = 1 + index_waypoints
@@ -193,30 +195,3 @@ try:
 except:
     print "Unexpected error:", sys.exc_info()[0]
     raise
-
-
-
-
-
-#float inital_heading;
-#float target_heading;
-#float diff_heading; 
-#bool turn_init;
-#bool target_reached;
-
-#pinMode(5,OUTPUT);
-#pinMode(6,OUTPUT);
-#pinMode(7,OUTPUT);
-#pinMode(12,OUTPUT);
-
-#if(!mag.begin()) {
-#   Serial.prinln("No HMC5883l detected")
-#   while(1);
-#}
-
-#turn_init = false;
-#target_reached = false;
-
-
-#if (!turn_init) {
-#   Serial.println("Starting turn ...");
