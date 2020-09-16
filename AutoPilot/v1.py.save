@@ -30,19 +30,6 @@ import gpscalculatemodule as GPSCalc
 distance = 0
 angle = 0
 
-#motor variables
-FORWARD_VEL = 230
-SLOW_TURN_VEL = 220
-PIVOT_WHEEL_VEL = 50
-FAST_TURN_VEL = 180
-
-#Calibration constants for the motors in differential drive config.
-# e. g. if the left motor is slower that the right one, you can add some
-# % to the left and reduce the same % to the right, and viceversa.#Initialise motor 1 and motor 2 on $
-K_RIGHT_MOTOR = 1.0
-K_LEFT_MOTOR = 1.0
-vel = 255
-
 #Tolerance how near you need to be the waypoint to set it as reached higher value less sensitive
 TOLERANCE_RADIUS = 1.0
 
@@ -65,14 +52,6 @@ GPIO.setup(Motor2A,GPIO.OUT)
 GPIO.setup(Motor2B,GPIO.OUT)
 GPIO.setup(Motor2E,GPIO.OUT)
 
-GPIO.output(Motor1A,GPIO.HIGH)
-GPIO.output(Motor1B,GPIO.LOW)
-GPIO.output(Motor2A,GPIO.HIGH)
-GPIO.output(Motor2B,GPIO.LOW)
-GPIO.output(Motor1E,GPIO.HIGH)
-GPIO.output(Motor2E,GPIO.HIGH)
-
-
 #Function to turn motor on
 def motor_on():
   GPIO.output(Motor1A,GPIO.HIGH)
@@ -91,21 +70,19 @@ def motor_off():
 nav_waypoint = np.loadtxt("waypoints.txt", dtype=np.float64, delimiter=",", skiprows=1)
 #nav_waypoint = np.array([[1,2],[3,4],[5,6]])
 #Number of waypoints to use in the loop so all waypoints will be went trough
-#Removing 1 because of the index_waypoints array starts a 0 and the len will give us 3 
-#but there are for 4 waypoints we should pass
-num_waypoints = (len(nav_waypoint)) - 1
+num_waypoints = (len(nav_waypoint))
 
 #Index of waypoints
 index_waypoints = 0
 
 #Setting global variable for waypoint_lat and waypoint_lon to get acces to the globals outside the method
-def act_waypoint(index_waypoints):
+def act_waypoint():
   print 'Actual waypoint'
-  print(nav_waypoint[index_waypoints,0:2])
+  print(nav_waypoint[0,0:2])
   global waypoint_lat
   global waypoint_lon
-  waypoint_lat = nav_waypoint[index_waypoints,0]
-  waypoint_lon = nav_waypoint[index_waypoints,1]
+  waypoint_lat = nav_waypoint[0,0]
+  waypoint_lon = nav_waypoint[0,1]
   
 #Create a TCP/IP socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -139,64 +116,6 @@ def readlines(sock, recv_buffer=4096, delim='\n'):
 
 # Create an instance of an GPGGA object.
 gpgga = nmea.GPGGA()
-
-# Constants for defining error ranges for the stepped proportional control
-MAX_HEADING_ANGLE = 180 
-MIN_HEADING_ANGLE = 5
-ANGLE_RANGE_DIV = 0.25
-
-
-def Forward(val):
-  GPIO.output(Motor1E,vel * K_RIGHT_MOTOR)
-  GPIO.output(Motor2E,vel * K_LEFT_MOTOR)
-
-def Turn_Left(vel):
-  pwmMotor1 = GPIO.PWM(Motor1E, vel * K_RIGHT_MOTOR)
-  pwmMotor2 = GPIO.PWM(Motor2E, PIVOT_WHEEL_VEL * K_LEFT_MOTOR)
-
-def Turn_Right(vel):
-  pwmMotor1 = GPIO.PWM(Motor1E, PIVOT_WHEEL_VEL * K_RIGHT_MOTOR)
-  pwmMotor2 = GPIO.PWM(Motor2E, vel * K_LEFT_MOTOR)
-def Turn_Left_Fast_Spin(vel):
-  pwmMotor1 = GPIO.PWM(Motor1E, vel * K_RIGHT_MOTOR)
-  pwmMotor2 = GPIO.PWM(Motor2E, vel * K_LEFT_MOTOR)
-
-def Turn_Right_Fast_Spin(vel):
-  pwmMotor1 = GPIO.PWM(Motor1E, vel * K_RIGHT_MOTOR)
-  pwmMotor2 = GPIO.PWM(Motor2E, vel * K_LEFT_MOTOR)
-
-#Stopping all motors on rover
-def Stop():
-  GPIO.output(Motor1E,GPIO.LOW)
-  GPIO.output(Motor2E,GPIO.LOW)
-
-def Control_Navigation(act_heading,dir_heading):
-   heading_error = (dir_heading - act_heading)
-#   print heading_error
-   if heading_error < -180:
-     heading_error = heading_error + 360
-   elif heading_error > 180:
-     heading_error = heading_error -360
-   print heading_error
-
-   #Turn right
-   if (heading_error > MIN_HEADING_ANGLE and heading_error <= MAX_HEADING_ANGLE * ANGLE_RANGE_DIV):
-     Turn_Right(SLOW_TURN_VEL)
-     print"Turn right" 
-   elif (heading_error > MAX_HEADING_ANGLE * ANGLE_RANGE_DIV and  heading_error <= MAX_HEADING_ANGLE):
-     Turn_Right_Fast_Spin(FAST_TURN_VEL)
-     print"Turn right fast"
-   elif (heading_error < -MIN_HEADING_ANGLE and heading_error >= -MAX_HEADING_ANGLE * ANGLE_RANGE_DIV): 
-     Turn_Left(SLOW_TURN_VEL)
-     print"Turn left"
-   elif (heading_error < -MAX_HEADING_ANGLE * ANGLE_RANGE_DIV and heading_error >= -MAX_HEADING_ANGLE):
-     Turn_Left_Fast_Spin(FAST_TURN_VEL)
-     print"Turn left fast"
-   elif (heading_error >= -MIN_HEADING_ANGLE and heading_error <= MIN_HEADING_ANGLE):
-     Forward(FORWARD_VEL)
-     print"Forward"
-   else:
-     print"Not defined"
 
 # Process the NMEA data and store it in two variables continuous.
 try:
@@ -250,38 +169,25 @@ try:
                         
                         #Calling the function act_waypoint() to get the waypoint that we are heading against
                         #To call waypoint_lat and waypoint_lon act_waypoint has to be run before so globals variables are defined
-                        act_waypoint(index_waypoints)
+                        act_waypoint()
                         
                         #Call of the module gpc-calculate-module with the GPS coordinates
                         distance, angle = GPSCalc.calc(lat, long, waypoint_lat, waypoint_lon)
-                        if angle < 0:
-                          angle += 360
-                        else:
-                          pass
-                        Control_Navigation(HMC.bearing(),angle)
                         print '\n------------ waypoint info ----------------'
                         print 'lat: ',waypoint_lat 
                         print 'long: ',waypoint_lon
                         print 'direction: ', round(angle, 1)
                         print 'distance to waypoint: ', round(distance,1), 'm'
                         if round(distance,1) < TOLERANCE_RADIUS:
+                          print('You are to far away from the waypoint')
+                        elif :
+                          print('Yoh have been on all waypoints - exit') 
+                        else:
                           print('You have reached waypoint',index_waypoints)
                           index_waypoints = 1 + index_waypoints
-                          print('You will now head against',index_waypoints)
-                          sleep(3)
-                        elif index_waypoints == num_waypoints:
-                          print('Yoh have been on all waypoints - exit') 
-                          print('Rover is going to home position')
-                          Stop()
-                          break
-                        else:
-                          print('You are too far away from the waypoint')
-#                          print('You have reached waypoint',index_waypoints)
-#                          index_waypoints = 1 + index_waypoints
-#                          print('You will now head against',index_waypoints)
-#                          sleep(3) 
-                        print 'total waypoints: ',num_waypoints + 1
-                        print 'wayponints left: The rover is on',index_waypoints + 1, ' of total ',num_waypoints + 1
+                          print('You will now head against',index_waypoints) 
+                        print 'total waypoints: ',num_waypoints
+                        print 'wayponints left: The rover is on',index_waypoints, ' of total ',num_waypoints
                         print '-------------------------------------------'
                         print '--------Waypoints from file ---------------'  
                         print '-------------------------------------------'
@@ -289,4 +195,3 @@ try:
 except:
     print "Unexpected error:", sys.exc_info()[0]
     raise
-
